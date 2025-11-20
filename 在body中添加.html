@@ -1,4 +1,4 @@
-<!-- 目录侧栏（搜索 / 折叠 / 整行可点 / 可调宽） -->
+<!-- 目录侧栏 -->
 <div id="toc-sidebar" role="complementary" aria-label="Table of Contents">
   <div class="toc-header">
     <div>
@@ -9,6 +9,7 @@
 
   <div class="toc-tools" role="toolbar" aria-label="目录工具">
     <div class="toc-search">
+      <!-- SVG 图标：颜色现在由 CSS 中的 .toc-search .icon 控制 -->
       <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
         <path d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
               fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -16,19 +17,22 @@
       <input id="toc-search" type="search" placeholder="搜索标题…" aria-label="搜索标题" />
       <button class="clear" id="toc-clear" aria-label="清除搜索" title="清除">
         <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-          <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M6 6l12 12M18 6L6 18"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
     </div>
     <div class="toc-actions">
       <button class="icon-btn" id="toc-expand-all" aria-label="展开全部" title="展开全部">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M12 5v14M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M12 5v14M5 12h14"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
       <button class="icon-btn" id="toc-collapse-all" aria-label="折叠全部" title="折叠全部">
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M5 12h14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <path d="M5 12h14"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </button>
     </div>
@@ -44,37 +48,73 @@
        aria-label="调整侧栏宽度" tabindex="0"></div>
 </div>
 
-<!-- 浮动开关按钮（与侧栏 transform 同步） -->
+<!-- 浮动开关按钮 -->
 <button id="toc-toggle" aria-label="打开/关闭目录" title="目录">
   <svg viewBox="0 0 24 24" aria-hidden="true">
     <g class="icon-closed">
-      <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
+      <path d="M4 7h16M4 12h16M4 17h16"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/>
     </g>
     <g class="icon-open" style="display:none">
-      <path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <path d="M15 6l-6 6 6 6"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round" fill="none"/>
     </g>
   </svg>
 </button>
 
 <script>
 (function(){
-  const $ = (sel, el=document) => el.querySelector(sel);
+  const $  = (sel, el=document) => el.querySelector(sel);
   const $$ = (sel, el=document) => Array.from(el.querySelectorAll(sel));
   const write = document.getElementById('write') || document.body;
 
-  /* ====== 开关状态 ====== */
+  /* ====== 开关状态（这里处理“首次不动画”） ====== */
   const STORE_KEY = 'typora-toc-open';
-  const setOpen = (open) => {
+  const sidebarEl = document.getElementById('toc-sidebar');
+  const toggleEl  = document.getElementById('toc-toggle');
+
+  function setOpen(open, opts){
+    const animate = !opts || opts.animate !== false;
+
+    // 首次初始化时：临时关闭过渡
+    if (!animate){
+      if (sidebarEl) sidebarEl.style.transition = 'none';
+      if (toggleEl)  toggleEl.style.transition  = 'none';
+    }
+
     document.body.classList.toggle('toc-open', !!open);
     try{ localStorage.setItem(STORE_KEY, open ? '1':'0'); }catch(e){}
-    const closed = $('#toc-toggle .icon-closed');
-    const opened = $('#toc-toggle .icon-open');
-    if (open){ closed.style.display='none'; opened.style.display='inline'; }
-    else { opened.style.display='none'; closed.style.display='inline'; }
-  };
+
+    if (toggleEl){
+      const closed = toggleEl.querySelector('.icon-closed');
+      const opened = toggleEl.querySelector('.icon-open');
+      if (closed && opened){
+        if (open){
+          closed.style.display='none';
+          opened.style.display='inline';
+        }else{
+          opened.style.display='none';
+          closed.style.display='inline';
+        }
+      }
+    }
+
+    if (!animate){
+      // 强制重绘一下，然后再恢复 transition，避免后续点击没动画
+      if (sidebarEl) sidebarEl.getBoundingClientRect();
+      if (toggleEl)  toggleEl.getBoundingClientRect();
+      setTimeout(()=>{
+        if (sidebarEl) sidebarEl.style.transition = '';
+        if (toggleEl)  toggleEl.style.transition  = '';
+      }, 0);
+    }
+  }
+
   const saved = (localStorage.getItem(STORE_KEY) === '1');
   const preferOpen = saved || (window.innerWidth > 1024);
-  setOpen(preferOpen);
+  // ★ 初始化：不做动画，直接就位
+  setOpen(preferOpen, { animate: false });
 
   /* ====== 工具函数 ====== */
   function getPxVar(name, fallback){
@@ -84,8 +124,8 @@
   }
   function anchorOffset(){
     const small = window.innerWidth <= 1024;
-    const gap = small ? 10 : getPxVar('--gap', 12);
-    const head = getPxVar('--header-pad', 14);
+    const gap   = small ? 10 : getPxVar('--gap', 12);
+    const head  = getPxVar('--header-pad', 14);
     return gap + head;
   }
   const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
@@ -94,7 +134,10 @@
 
   function cancelOngoingScroll(){
     animToken++;
-    if (activeRAF != null) { cancelAnimationFrame(activeRAF); activeRAF = null; }
+    if (activeRAF != null){
+      cancelAnimationFrame(activeRAF);
+      activeRAF = null;
+    }
     document.documentElement.classList.remove('no-smooth');
   }
 
@@ -103,13 +146,16 @@
       const myToken = animToken;
       const docEl = document.documentElement;
 
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches){
         window.scrollTo(0, targetY);
         return resolve();
       }
       const startY = window.scrollY;
-      const delta = targetY - startY;
-      if (Math.abs(delta) < 40) { window.scrollTo(0, targetY); return resolve(); }
+      const delta  = targetY - startY;
+      if (Math.abs(delta) < 40){
+        window.scrollTo(0, targetY);
+        return resolve();
+      }
 
       docEl.classList.add('no-smooth');
 
@@ -118,10 +164,13 @@
       window.scrollTo(0, clamp(kickY, 0, Math.max(0, docEl.scrollHeight - window.innerHeight)));
 
       const start = performance.now();
-      const dur = clamp(baseDuration + Math.abs(delta) * 0.12, 280, 620);
+      const dur   = clamp(baseDuration + Math.abs(delta) * 0.12, 280, 620);
 
       function frame(now){
-        if (myToken !== animToken) { docEl.classList.remove('no-smooth'); return resolve(); }
+        if (myToken !== animToken){
+          docEl.classList.remove('no-smooth');
+          return resolve();
+        }
         const t = Math.min(1, (now - start) / dur);
         const y = startY + delta * easeOutCubic(t);
         window.scrollTo(0, y);
@@ -143,7 +192,9 @@
   const headings = $$('#write h1, #write h2, #write h3, #write h4, #write h5, #write h6');
   const treeRoot = $('#toc-tree');
   const slugify = (text) => (text||'').trim().toLowerCase()
-    .replace(/[^\p{L}\p{N}\s-]/gu,'').replace(/\s+/g,'-').replace(/-+/g,'-');
+    .replace(/[^\p{L}\p{N}\s-]/gu,'')
+    .replace(/\s+/g,'-')
+    .replace(/-+/g,'-');
 
   const ulStack = [treeRoot];
   let curLevel = 1, lastLi = null;
@@ -155,10 +206,10 @@
 
     cancelOngoingScroll();
 
-    const anchor = anchorOffset();
+    const anchor  = anchorOffset();
     const rectTop = el.getBoundingClientRect().top;
     const current = window.scrollY;
-    const doc = document.documentElement;
+    const doc     = document.documentElement;
     const maxScroll = Math.max(0, (doc.scrollHeight - window.innerHeight));
     let targetY = current + rectTop - anchor;
     targetY = clamp(targetY, 0, maxScroll);
@@ -173,10 +224,11 @@
     li.innerHTML = '<div class="row" role="link" tabindex="0"><a>(未检测到标题)</a></div>';
     treeRoot.appendChild(li);
   }else{
-    headings.forEach((h, idx) => {
+    headings.forEach((h, idx)=>{
       if(!h.id){
         const s = slugify(h.textContent) || ('h-' + (idx+1));
-        let u = s, k=2; while(document.getElementById(u)) u = s + '-' + k++;
+        let u = s, k = 2;
+        while(document.getElementById(u)) u = s + '-' + k++;
         h.id = u;
       }
       const level = Math.min(6, Math.max(1, parseInt(h.tagName.slice(1),10) || 1));
@@ -188,13 +240,16 @@
         ulStack.push(sub); curLevel++;
       }
 
-      const li = document.createElement('li');
+      const li  = document.createElement('li');
       li.classList.add('lv-' + level);
-      li.setAttribute('role', 'treeitem');
+      li.setAttribute('role','treeitem');
 
-      const row = document.createElement('div'); row.className = 'row';
-      row.setAttribute('role','link'); row.setAttribute('tabindex','0');
-      row.dataset.targetId = h.id; row.setAttribute('aria-label', h.textContent.trim());
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.setAttribute('role','link');
+      row.setAttribute('tabindex','0');
+      row.dataset.targetId = h.id;
+      row.setAttribute('aria-label', h.textContent.trim());
 
       const a = document.createElement('a');
       a.href = '#' + h.id;
@@ -218,7 +273,7 @@
       row.addEventListener('keydown', (e)=>{
         if (e.target !== row) return;
         const key = e.key.toLowerCase();
-        if (key === 'enter' || key === ' ') {
+        if (key === 'enter' || key === ' '){
           e.preventDefault();
           scrollToHeadingSmooth(row.dataset.targetId);
           history.replaceState(null,'','#'+row.dataset.targetId);
@@ -232,16 +287,20 @@
       lastLi = li;
     });
 
-    // 折叠按钮
+    // 添加折叠按钮
     $$('#toc-tree li').forEach(li=>{
       const hasChildren = !!li.querySelector(':scope > ul');
       if(hasChildren){
         li.classList.add('has-children');
         li.setAttribute('aria-expanded','true');
         const btn = document.createElement('button');
-        btn.className = 'twisty'; btn.setAttribute('aria-label','折叠/展开');
-        btn.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M9 18l6-6-6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        btn.className = 'twisty';
+        btn.setAttribute('aria-label','折叠/展开');
+        btn.innerHTML = `
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M9 18l6-6-6-6"
+                  fill="none" stroke="currentColor" stroke-width="2"
+                  stroke-linecap="round" stroke-linejoin="round"/>
           </svg>`;
         const row = li.querySelector(':scope > .row');
         row.insertBefore(btn, row.firstChild);
@@ -258,21 +317,26 @@
   /* ====== 折叠状态持久化 ====== */
   const COLLAPSE_KEY = 'typora-toc-collapsed';
   const collapsedMap = new Map();
+
   function getPath(li){
     const labels = [];
     let p = li;
     while(p && p !== treeRoot){
       const label = p.querySelector(':scope > .row a')?.dataset.label || '';
-      labels.push(label); p = p.parentElement.closest('li');
+      labels.push(label);
+      p = p.parentElement.closest('li');
     }
     return labels.reverse().join(' > ');
   }
   function saveCollapsed(li, collapsed){
-    const path = getPath(li); collapsedMap.set(path, collapsed); persistCollapsed();
+    const path = getPath(li);
+    collapsedMap.set(path, collapsed);
+    persistCollapsed();
   }
   function persistCollapsed(){
     try{
-      const obj = {}; collapsedMap.forEach((v,k)=>obj[k]=v);
+      const obj = {};
+      collapsedMap.forEach((v,k)=>obj[k]=v);
       localStorage.setItem(COLLAPSE_KEY, JSON.stringify(obj));
     }catch(e){}
   }
@@ -280,27 +344,33 @@
     const savedMap = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || '{}');
     $$('#toc-tree li.has-children').forEach(li=>{
       const path = getPath(li);
-      if(savedMap[path]){ li.classList.add('collapsed'); li.setAttribute('aria-expanded','false'); }
+      if(savedMap[path]){
+        li.classList.add('collapsed');
+        li.setAttribute('aria-expanded','false');
+      }
     });
     Object.entries(savedMap).forEach(([k,v])=>collapsedMap.set(k, !!v));
   }catch(e){}
 
-  /* ====== 展开/折叠全部 ====== */
+  /* 展开 / 折叠全部 */
   $('#toc-expand-all').addEventListener('click', ()=>{
     $$('#toc-tree li.has-children').forEach(li=>{
-      li.classList.remove('collapsed'); li.setAttribute('aria-expanded','true');
+      li.classList.remove('collapsed');
+      li.setAttribute('aria-expanded','true');
       saveCollapsed(li, false);
     });
   });
   $('#toc-collapse-all').addEventListener('click', ()=>{
     $$('#toc-tree li.has-children').forEach(li=>{
-      li.classList.add('collapsed'); li.setAttribute('aria-expanded','false');
+      li.classList.add('collapsed');
+      li.setAttribute('aria-expanded','false');
       saveCollapsed(li, true);
     });
   });
 
   /* ====== 搜索 ====== */
-  const input = $('#toc-search'), clearBtn = $('#toc-clear');
+  const input    = $('#toc-search');
+  const clearBtn = $('#toc-clear');
   let preSearchStates = null;
 
   const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
@@ -328,7 +398,6 @@
       li.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     });
   }
-
   function setAllExpanded(expanded){
     $$('#toc-tree li.has-children').forEach(li=>{
       li.classList.toggle('collapsed', !expanded);
@@ -340,15 +409,17 @@
     const query = norm(q);
     if(!query){
       $$('#toc-tree a').forEach(a=>clearHighlight(a));
-      $$('#toc-tree li').forEach(li=>li.hidden=false);
+      $$('#toc-tree li').forEach(li=>li.hidden = false);
       restoreCollapseStates(preSearchStates);
       preSearchStates = null;
       return;
     }
-    if(preSearchStates == null){ preSearchStates = rememberCollapseStates(); }
+    if(preSearchStates == null){
+      preSearchStates = rememberCollapseStates();
+    }
     setAllExpanded(true);
 
-    $$('#toc-tree li').forEach(li=>li.hidden=true);
+    $$('#toc-tree li').forEach(li=>li.hidden = true);
     $$('#toc-tree a').forEach(a=>{
       const hit = norm(a.dataset.label).includes(query);
       clearHighlight(a);
@@ -357,30 +428,47 @@
         const li = a.closest('li');
         li.hidden = false;
         let p = li.parentElement.closest('li');
-        while(p){ p.hidden = false; p = p.parentElement.closest('li'); }
-        li.querySelectorAll(':scope li').forEach(n=>n.hidden=false);
+        while(p){
+          p.hidden = false;
+          p = p.parentElement.closest('li');
+        }
+        li.querySelectorAll(':scope li').forEach(n=>n.hidden = false);
       }
     });
   }
+
   input.addEventListener('input', e=> doSearch(e.target.value));
-  clearBtn.addEventListener('click', ()=>{ input.value=''; doSearch(''); input.focus(); });
+  clearBtn.addEventListener('click', ()=>{
+    input.value = '';
+    doSearch('');
+    input.focus();
+  });
 
   /* ====== 当前章节高亮 ====== */
-  const linksById = {}; $$('#toc-tree a').forEach(a => linksById[a.getAttribute('href').slice(1)] = a);
+  const linksById = {};
+  $$('#toc-tree a').forEach(a=>{
+    linksById[a.getAttribute('href').slice(1)] = a;
+  });
 
   function activate(id){
-    $$('#toc-tree .row.is-active').forEach(r => r.classList.remove('is-active'));
+    $$('#toc-tree .row.is-active').forEach(r=>r.classList.remove('is-active'));
     const row = linksById[id]?.closest('li')?.querySelector(':scope > .row');
-    if(row){ row.classList.add('is-active'); }
+    if(row) row.classList.add('is-active');
+
     const li = linksById[id]?.closest('li');
     if(li){
       let p = li.parentElement.closest('li');
-      while(p){ p.classList.remove('collapsed'); p.setAttribute('aria-expanded','true'); p = p.parentElement.closest('li'); }
+      while(p){
+        p.classList.remove('collapsed');
+        p.setAttribute('aria-expanded','true');
+        p = p.parentElement.closest('li');
+      }
     }
   }
 
   const EPS = 6;
   let ticking = false;
+
   function computeActiveId(force=false){
     if (!force && Date.now() < navLockUntil) return;
     const anchor = anchorOffset();
@@ -389,37 +477,50 @@
 
     for(const h of headings){
       const top = h.getBoundingClientRect().top - anchor;
-      if (top >= -EPS && top < bestBelowTop){ bestBelowTop = top; bestBelowId = h.id; }
-      if (top <= EPS && top > bestAboveTop){ bestAboveTop = top; bestAboveId = h.id; }
+      if (top >= -EPS && top < bestBelowTop){
+        bestBelowTop = top;
+        bestBelowId = h.id;
+      }
+      if (top <= EPS && top > bestAboveTop){
+        bestAboveTop = top;
+        bestAboveId = h.id;
+      }
     }
     const id = (bestBelowId !== null) ? bestBelowId : bestAboveId;
     if (id) activate(id);
   }
+
   function onScroll(){
     if(!ticking){
       ticking = true;
-      requestAnimationFrame(()=>{ computeActiveId(); ticking = false; });
+      requestAnimationFrame(()=>{
+        computeActiveId();
+        ticking = false;
+      });
     }
   }
   document.addEventListener('scroll', onScroll, {passive:true});
   window.addEventListener('resize', onScroll, {passive:true});
   computeActiveId(true);
 
-  /* ====== 开关按钮 ====== */
-  $('#toc-toggle').addEventListener('click', ()=> setOpen(!document.body.classList.contains('toc-open')));
+  /* 开关按钮（此时已经有动画了） */
+  $('#toc-toggle').addEventListener('click', ()=>{
+    setOpen(!document.body.classList.contains('toc-open'));
+  });
 
-  /* 小屏点击正文空白处关闭侧栏 */
+  /* 小屏：点击正文空白处关闭侧栏 */
   document.addEventListener('click', (e)=>{
-    const s = $('#toc-sidebar'), btn = $('#toc-toggle');
+    const s = $('#toc-sidebar');
+    const btn = $('#toc-toggle');
     if(window.innerWidth > 1024) return;
     if(!document.body.classList.contains('toc-open')) return;
     const inside = s.contains(e.target) || btn.contains(e.target) || $('#toc-search') === e.target;
     if(!inside) setOpen(false);
   }, {passive:true});
 
-  /* ====== 调宽：右侧“幽灵把手”（外侧，不遮滚动条） ====== */
+  /* 调宽：右侧“幽灵把手”（外侧，不遮滚动条） */
   const WIDTH_KEY = 'typora-toc-width';
-  const resizer = $('#toc-resizer');
+  const resizer   = $('#toc-resizer');
 
   function getCurrentWidth(){
     const v = getComputedStyle(document.documentElement).getPropertyValue('--toc-current-width').trim();
@@ -429,9 +530,11 @@
   function setWidth(px, persist=true){
     const minW = 220;
     const maxW = Math.max(300, Math.floor(window.innerWidth * 0.6));
-    const w = Math.max(minW, Math.min(maxW, px));
+    const w    = Math.max(minW, Math.min(maxW, px));
     document.documentElement.style.setProperty('--toc-current-width', w + 'px');
-    if(persist){ try{ localStorage.setItem(WIDTH_KEY, String(w)); }catch(e){} }
+    if(persist){
+      try{ localStorage.setItem(WIDTH_KEY, String(w)); }catch(e){}
+    }
   }
   (function restoreWidth(){
     if(window.innerWidth <= 1024) return;
@@ -445,8 +548,8 @@
     function onPointerDown(e){
       if(window.innerWidth <= 1024) return;
       dragging = true;
-      startX = e.clientX;
-      startW = getCurrentWidth();
+      startX    = e.clientX;
+      startW    = getCurrentWidth();
       document.body.classList.add('resizing');
       resizer.setPointerCapture?.(e.pointerId);
       window.addEventListener('pointermove', onPointerMove, {passive:false});
@@ -456,7 +559,7 @@
     function onPointerMove(e){
       if(!dragging) return;
       const dx = e.clientX - startX;
-      setWidth(startW + dx, false);   // 右侧把手：向右拖 = 变宽
+      setWidth(startW + dx, false);
       e.preventDefault();
     }
     function onPointerUp(){
@@ -465,9 +568,10 @@
       setWidth(getCurrentWidth(), true);
       window.removeEventListener('pointermove', onPointerMove, {passive:false});
     }
+
     resizer.addEventListener('pointerdown', onPointerDown);
 
-    // 双击重置
+    // 双击恢复默认宽度
     resizer.addEventListener('dblclick', ()=>{
       document.documentElement.style.removeProperty('--toc-current-width');
       try{ localStorage.removeItem(WIDTH_KEY); }catch(e){}
@@ -477,16 +581,19 @@
     resizer.addEventListener('keydown', (e)=>{
       if(window.innerWidth <= 1024) return;
       const step = e.shiftKey ? 40 : 10;
-      if(e.key === 'ArrowLeft'){ setWidth(getCurrentWidth() - step); e.preventDefault(); }
-      else if(e.key === 'ArrowRight'){ setWidth(getCurrentWidth() + step); e.preventDefault(); }
-      else if(e.key.toLowerCase() === 'r'){
+      if(e.key === 'ArrowLeft'){
+        setWidth(getCurrentWidth() - step);
+        e.preventDefault();
+      }else if(e.key === 'ArrowRight'){
+        setWidth(getCurrentWidth() + step);
+        e.preventDefault();
+      }else if(e.key.toLowerCase() === 'r'){
         document.documentElement.style.removeProperty('--toc-current-width');
         try{ localStorage.removeItem(WIDTH_KEY); }catch(err){}
         e.preventDefault();
       }
     });
 
-    // 视口变化
     window.addEventListener('resize', ()=>{
       if(window.innerWidth <= 1024){
         document.documentElement.style.removeProperty('--toc-current-width');
@@ -498,6 +605,8 @@
   }
 
   /* 初始 hash 高亮 */
-  if(location.hash){ activate(decodeURIComponent(location.hash.slice(1))); }
+  if(location.hash){
+    activate(decodeURIComponent(location.hash.slice(1)));
+  }
 })();
 </script>
